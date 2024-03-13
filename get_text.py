@@ -5,72 +5,89 @@ from pathlib import Path
 from msgspec.json import decode
 from requests import Session
 
-from return_type import DayMeal
-
-base_url = "https://ikuchnia.com.pl/klient/index.php"
-
-path_to_secrets = Path("secret.json")
+from return_type import RawDayMeal, RawMeal
 
 
-def get_data():
-    with path_to_secrets.open() as f:
-        secrets = load(f)
-    data = {
-        "login_email": secrets["login"],
-        "pass": secrets["password"],
-        "login": "Zaloguj",
-    }
-    return data
+class MealFetcher:
+    base_url = "https://ikuchnia.com.pl/klient/"
+    sid_path = Path("sid.json")
 
+    def __init__(self, secrets_path: Path = Path("secret.json")):
+        with secrets_path.open() as f:
+            secrets = load(f)
+        self.sid = None
+        self.login_data = {
+            "login_email": secrets["login"],
+            "pass": secrets["password"],
+            "login": "Zaloguj",
+        }
+        self.last_loaded_sid = datetime.now() - timedelta(minutes=20)
+        self.check_sid()
 
-last_sid_path = Path("./sid.json")
+    def check_sid(self):
+        if datetime.now() - self.last_loaded_sid < timedelta(minutes=10):
+            return
 
-
-def get_sid():
-    # active for 10 min, 15 is invalid
-    if last_sid_path.exists():
-        with last_sid_path.open() as f:
-            last_sid = load(f)
-        if datetime.now() - datetime.fromisoformat(last_sid["timestamp"]) < timedelta(minutes=10):
-            sid = last_sid["sid"]
+        if self.sid_path.exists():
+            with self.sid_path.open() as f:
+                last_sid = load(f)
+            if datetime.now() - datetime.fromisoformat(last_sid["timestamp"]) < timedelta(minutes=10):
+                self.sid = last_sid["sid"]
+            else:
+                self.sid = None
         else:
-            sid = None
-    else:
-        sid = None
+            self.sid = None
 
-    with Session() as session:
-        if sid is not None:
-            session.cookies.set("PHPSESSID", sid)
-        else:
-            session.request(method="POST", url=base_url, data=get_data())
-            sid = session.cookies.get("PHPSESSID")
-            new_sid = {"timestamp": datetime.now().isoformat(), "sid": sid}
-            with last_sid_path.open(mode="w") as f:
-                dump(new_sid, f)
+        if self.sid is not None:
+            return
 
-    return sid
+        with Session() as session:
+            session.request(method="POST", url=self.base_url + "index.php", data=self.login_data)
+            self.sid = session.cookies.get("PHPSESSID")
+            with self.sid_path.open(mode="w") as f:
+                dump({"timestamp": datetime.now().isoformat(), "sid": self.sid}, f)
+        self.last_loaded_sid = datetime.now()
 
+    def get_day(self, day: date) -> RawDayMeal:
+        self.check_sid()
+        data = {
+            "do": "show_day",
+            "day": day.isoformat(),
+        }
+        with Session() as session:
+            session.cookies.set("PHPSESSID", self.sid)
+            response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz", data=data)
+            result = decode(response.text, type=RawDayMeal)
+        return result
 
-def get_day(day: date) -> DayMeal:
-    data = {
-        "do": "show_day",
-        "day": day.isoformat(),
-    }
-    with Session() as session:
-        session.cookies.set("PHPSESSID", get_sid())
-        response = session.request(method="POST", url=base_url + "?module=kalendarz", data=data)
-        result = decode(response.text, type=DayMeal)
-    return result
+    def get_month(self, month: date):
+        self.check_sid()
+        data = {
+            "do": "show_month",
+            "month": f"{month.year}-{month.month}",
+        }
+        with Session() as session:
+            session.cookies.set("PHPSESSID", self.sid)
+            response = session.request(method="POST", url=self.base_url + "index.php?module=orderhistory", data=data)
+        return response.text
 
+    def get_styles(self):
+        with Session() as session:
+            response = session.request(method="GET", url=self.base_url + "css/styles.css")
+        return response.text
 
-def test():
-    for day in range(1, 29):
-        result = get_day(date(2024, 3, day))
-        if result.day != day:
-            print("Error: day is invalid")
-            result.html = "..."  # for viewing purposes
-            print(result)
+    def get_meal(self, day) -> RawMeal:
+        self.check_sid()
+        data = {
+            "do": "show_available",
+            "day": day.isoformat(),
+        }
+        with Session() as session:
+            session.cookies.set("PHPSESSID", self.sid)
+            response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz", data=data)
+            result = decode(response.text, type=RawMeal)
+        return result
 
 
 if __name__ == '__main__':
-    test()
+    meal_fetcher = MealFetcher()

@@ -221,3 +221,5 @@ dmypy.json
 .pytype/
 
 /secret.json
+/example.json
+/sid.json
