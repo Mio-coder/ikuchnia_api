@@ -220,5 +220,4 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
-
-secrets.json
+/secret.json
