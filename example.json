@@ -1,0 +1,18 @@
+{
+  "html": "\t<div><i class=\"fa-solid fa-triangle-exclamation\"></i> Dzień niedostępny</div>\n",
+  "date": "09 Sob",
+  "day": 9,
+  "sql": "2024-03-09",
+  "proj": [
+    {
+      "do_kiedy_zamowic_dzis": "08:00:00",
+      "do_kiedy_zamowic": "00:00:00",
+      "sposob_zamawiania": "school",
+      "pokaz_dania": "yes",
+      "ID": "27",
+      "guzik_edytuj": "all",
+      "rezygnacja": "08:00:00"
+    }
+  ],
+  "blokada_zamawiania": false
+}
