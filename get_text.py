@@ -5,8 +5,8 @@ from pathlib import Path
 from msgspec.json import decode
 from requests import Session
 
-from parse_html import parse_meal_available_html
-from return_type import RawMeals, RawMealsAvailable, MealsAvailable
+from parse_html import parse_meal_available_html, parse_meal_ordered_html
+from return_type import RawMealsOrdered, RawMealsAvailable, MealsAvailable, MealsOrdered
 
 
 class MealFetcher:
@@ -49,7 +49,7 @@ class MealFetcher:
                 dump({"timestamp": datetime.now().isoformat(), "sid": self.sid}, f)
         self.last_loaded_sid = datetime.now()
 
-    def get_day(self, day: date) -> RawMeals:
+    def get_day(self, day: date, include_raw: bool = False) -> MealsOrdered:
         self.check_sid()
         data = {
             "do": "show_day",
@@ -58,8 +58,8 @@ class MealFetcher:
         with Session() as session:
             session.cookies.set("PHPSESSID", self.sid)
             response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz", data=data)
-            result = decode(response.text, type=RawMeals)
-        return result
+            result = decode(response.text, type=RawMealsOrdered)
+        return parse_meal_ordered_html(result, include_raw)
 
     def get_month(self, month: date) -> str:
         self.check_sid()
