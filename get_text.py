@@ -5,7 +5,8 @@ from pathlib import Path
 from msgspec.json import decode
 from requests import Session
 
-from return_type import RawDayMeal, RawMeal
+from parse_html import parse_meal_available_html, parse_meal_ordered_html
+from return_type import RawMealsOrdered, RawMealsAvailable, MealsAvailable, MealsOrdered
 
 
 class MealFetcher:
@@ -48,7 +49,7 @@ class MealFetcher:
                 dump({"timestamp": datetime.now().isoformat(), "sid": self.sid}, f)
         self.last_loaded_sid = datetime.now()
 
-    def get_day(self, day: date) -> RawDayMeal:
+    def get_day(self, day: date, include_raw: bool = False) -> MealsOrdered:
         self.check_sid()
         data = {
             "do": "show_day",
@@ -57,10 +58,10 @@ class MealFetcher:
         with Session() as session:
             session.cookies.set("PHPSESSID", self.sid)
             response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz", data=data)
-            result = decode(response.text, type=RawDayMeal)
-        return result
+            result = decode(response.text, type=RawMealsOrdered)
+        return parse_meal_ordered_html(result, include_raw)
 
-    def get_month(self, month: date):
+    def get_month(self, month: date) -> str:
         self.check_sid()
         data = {
             "do": "show_month",
@@ -71,12 +72,12 @@ class MealFetcher:
             response = session.request(method="POST", url=self.base_url + "index.php?module=orderhistory", data=data)
         return response.text
 
-    def get_styles(self):
+    def get_styles(self) -> str:
         with Session() as session:
             response = session.request(method="GET", url=self.base_url + "css/styles.css")
         return response.text
 
-    def get_meal(self, day) -> RawMeal:
+    def get_meals(self, day: date, include_raw: bool) -> MealsAvailable:
         self.check_sid()
         data = {
             "do": "show_available",
@@ -85,8 +86,8 @@ class MealFetcher:
         with Session() as session:
             session.cookies.set("PHPSESSID", self.sid)
             response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz", data=data)
-            result = decode(response.text, type=RawMeal)
-        return result
+            result = decode(response.text, type=RawMealsAvailable)
+        return parse_meal_available_html(result, include_raw)
 
 
 if __name__ == '__main__':

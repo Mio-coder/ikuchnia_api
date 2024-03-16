@@ -223,3 +223,4 @@ dmypy.json
 /secret.json
 /example.json
 /sid.json
+tmp/
