@@ -42,6 +42,13 @@ day_pattern = compile(
 # <div class="dish-group "><i class="fas fa-utensils"></i> Zupa</div><div class="dish-selected font-strike">Pomidorowa z makaronem </div><div class="btn-group mb-3"><button type="button" class="btn btn-warning uncancel-dish d-print-none" data-data="2024-03-15"><i class="fas fa-utensils"></i> Przywróć</button></div>
 
 def parse_meal_available_html(raw_meals: RawMealsAvailable, include_raw):
+    """
+    Parses HTML content of response for available meals
+
+    :param raw_meals: raw meals from response
+    :param include_raw: Whether to include the raw version of the response
+    :return: available meals
+    """
     html = raw_meals.html
     html = html.replace("\n", "")
     html = html.replace("\t", "")
@@ -78,6 +85,7 @@ def parse_meal_available_html(raw_meals: RawMealsAvailable, include_raw):
 
 
 def parse_proj_ordered(raw_proj):
+    """Parses proj to more usable types"""
     return ProjOrdered(
         raw_proj.do_kiedy_zamowic_dzis,
         raw_proj.do_kiedy_zamowic,
@@ -90,6 +98,13 @@ def parse_proj_ordered(raw_proj):
 
 
 def parse_meal_ordered_html(raw_order: RawMealsOrdered, include_raw: bool = False) -> MealsOrdered:
+    """
+    Parses HTML content of response for ordered meals
+
+    :param raw_order: Raw meals data from the response
+    :param include_raw: Whether to include the raw version of the response
+    :return: Ordered meals
+    """
     html = raw_order.html
     html = html.replace("\n", "")
     html = html.replace("\t", "")
