@@ -1,8 +1,9 @@
-from datetime import time, date
+from datetime import time, date, datetime
 from pprint import pprint
 from typing import Optional
 
 from msgspec import Struct
+from requests import Session
 
 
 class ProjOrdered(Struct):
@@ -73,6 +74,14 @@ class MealsAvailable(Struct):
     price_before: float
     price_after: float
     raw: Optional[RawMealsAvailable] = None
+
+
+class Sid(Struct):
+    timestamp: datetime
+    sid: str
+
+    def set(self, session: Session):
+        session.cookies.set("PHPSESSID", self.sid)
 
 
 if __name__ == '__main__':
