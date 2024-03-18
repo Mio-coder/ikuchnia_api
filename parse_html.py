@@ -41,7 +41,7 @@ day_pattern = compile(
 
 # <div class="dish-group "><i class="fas fa-utensils"></i> Zupa</div><div class="dish-selected font-strike">Pomidorowa z makaronem </div><div class="btn-group mb-3"><button type="button" class="btn btn-warning uncancel-dish d-print-none" data-data="2024-03-15"><i class="fas fa-utensils"></i> Przywróć</button></div>
 
-def parse_meal_available_html(raw_meals: RawMealsAvailable, include_raw):
+def parse_meal_available_html(raw_meals: RawMealsAvailable, order_date: date, include_raw: bool):
     """
     Parses HTML content of response for available meals
 
@@ -75,7 +75,7 @@ def parse_meal_available_html(raw_meals: RawMealsAvailable, include_raw):
             item
         )
     return MealsAvailable(
-        day_no,
+        order_date,
         day_name,
         meals,
         float(raw_meals.cena_przed),
@@ -110,7 +110,7 @@ def parse_meal_ordered_html(raw_order: RawMealsOrdered, include_raw: bool = Fals
     html = html.replace("\t", "")
     matches = dish_pattern.match(html)
     meals = []
-    for match in matches:
+    for match in matches.groups():
         meals.append(MealOrdered(
             match[0],
             match[2],

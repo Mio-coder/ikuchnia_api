@@ -68,7 +68,7 @@ class MealAvailable(Struct):
 
 
 class MealsAvailable(Struct):
-    day_no: int
+    date: date
     day_name: str
     meals: dict[str, MealAvailable]
     price_before: float
