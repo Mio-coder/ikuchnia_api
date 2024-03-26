@@ -37,7 +37,18 @@ is_canceled_pattern = compile(
 day_pattern = compile(
     r"\d\d (\w+)"
 )
-
+dish_name_translation = {
+    "Zupa": "soup",
+    "Danie mięsne": "meat_dish",
+    "Danie wegetariańskie": "vegetarian_dish",
+    "Danie dodatkowe": "bonus_dish",
+    "Sok tłoczony na zimno": "juice",
+    "Soup": "soup",
+    "Meat dish": "meat_dish",
+    "Vegetarian dish": "vegetarian_dish",
+    # "Danie dodatkowe": "bonus_dish", not translated
+    "Cold press juice": "juice",
+}
 
 # <div class="dish-group "><i class="fas fa-utensils"></i> Zupa</div><div class="dish-selected font-strike">Pomidorowa z makaronem </div><div class="btn-group mb-3"><button type="button" class="btn btn-warning uncancel-dish d-print-none" data-data="2024-03-15"><i class="fas fa-utensils"></i> Przywróć</button></div>
 
@@ -57,16 +68,21 @@ def parse_meal_available_html(raw_meals: RawMealsAvailable, order_date: date, in
     day_name = result.group(2)
     html = result.group(3)
     entries = entry_pattern.findall(html)
-    meals = {}
+    meals = {
+        "soup": None,
+        "meat_dish": None,
+        "vegetarian_dish": None,
+        "bonus_dish": None,
+        "juice": None
+    }
     for entry in entries:
-        print(entry)
         title = entry[0]
         danie_id_label = int(entry[1])
         grupa_cenowa = int(entry[2])
         danie_id = int(entry[3])
         selected = entry[4] == "checked"
         item = entry[4]
-        meals[title] = MealAvailable(
+        meals[dish_name_translation[title]] = MealAvailable(
             title,
             danie_id_label,
             danie_id,
@@ -77,7 +93,11 @@ def parse_meal_available_html(raw_meals: RawMealsAvailable, order_date: date, in
     return MealsAvailable(
         order_date,
         day_name,
-        meals,
+        meals["soup"],
+        meals["meat_dish"],
+        meals["vegetarian_dish"],
+        meals["bonus_dish"],
+        meals["juice"],
         float(raw_meals.cena_przed),
         float(raw_meals.cena_po),
         raw_meals if include_raw else None
@@ -110,7 +130,9 @@ def parse_meal_ordered_html(raw_order: RawMealsOrdered, include_raw: bool = Fals
     html = html.replace("\t", "")
     matches = dish_pattern.match(html)
     meals = []
-    for match in matches.groups():
+    meals_matches = matches.groups()
+    meals_matches = (meals_matches,) if not isinstance(meals_matches[0], tuple) else meals_matches
+    for match in meals_matches:
         meals.append(MealOrdered(
             match[0],
             match[2],

@@ -6,7 +6,7 @@ from msgspec.json import decode, encode
 from requests import Session
 
 from parse_html import parse_meal_available_html, parse_meal_ordered_html
-from return_type import RawMealsOrdered, RawMealsAvailable, MealsAvailable, MealsOrdered, Sid, MealAvailable
+from return_type import RawMealsOrdered, RawMealsAvailable, MealsAvailable, MealsOrdered, Sid
 
 
 def file_login_getter(file: Path):
@@ -19,52 +19,45 @@ def file_login_getter(file: Path):
         with file.open() as f:
             return decode(f.read(), type=tuple)
 
-    return getter()
+    return getter
 
 
 class MealFetcher:
     """
     Client for iKuchnia internal api
-
-    :ivar base_url: Base URL for the iKuchnia internal API
-    :ivar sid_path: Path to store the sid
-    :ivar sid: Session ID
     """
 
     base_url = "https://ikuchnia.com.pl/klient/"
-    sid: Sid
-    """Session ID"""
 
     def __init__(self, secrets_getter: Callable[[], tuple[str, str]], sid_path: Path = Path("./sid.json")):
         """
         Initializes the MealFetcher with secrets getter function
         """
-
         self.secrets_getter = secrets_getter
         self.sid_path = sid_path
-        self.sid = Sid(datetime.now() - timedelta(1), "")
-        self.check_sid()
+        self.sid = Sid(datetime.now(), "")
+        self.check_sid(True)
 
-    def check_sid(self) -> bool:
+    def check_sid(self, force_refresh: bool = False) -> bool:
         """
         Ensures that the session ID is active and
         stores it in file self.sid_path
         returns if self.sid has changed
+        if force_refresh is True, always refreshes the sid
         """
-
         need_refresh = self.sid.sid == "" or datetime.now() - self.sid.timestamp > timedelta(minutes=10)
 
-        if not need_refresh:
-            return False
-
-        if self.sid_path.exists():
+        if need_refresh and not force_refresh and self.sid_path.exists():
             with self.sid_path.open() as f:
                 last_sid = decode(f.read(), type=Sid)
             if datetime.now() - last_sid.timestamp < timedelta(minutes=10):
                 self.sid = last_sid
                 need_refresh = False
 
-        if need_refresh:
+        if not need_refresh and not force_refresh:
+            return False
+
+        if need_refresh or force_refresh:
             with Session() as session:
                 login = self.secrets_getter()
                 session.request(method="POST", url=self.base_url + "index.php", data={
@@ -75,14 +68,12 @@ class MealFetcher:
                 self.sid = Sid(datetime.now(), session.cookies.get("PHPSESSID"))
                 need_refresh = False
 
-        if need_refresh:
-            raise ValueError("Could not get sid")
-
         with self.sid_path.open(mode="wb") as f:
             f.write(encode(self.sid))
+
         return True
 
-    def get_day(self, day: date, include_raw: bool = False) -> MealsOrdered:
+    def get_day_orders(self, day: date, include_raw: bool = False) -> MealsOrdered:
         """
         Get ordered meals for a day
 
@@ -101,7 +92,7 @@ class MealFetcher:
             result = decode(response.text, type=RawMealsOrdered)
         return parse_meal_ordered_html(result, include_raw)
 
-    def get_month(self, month: date) -> str:
+    def get_month_orders(self, month: date) -> str:
         """
         Get HTML for orders for month,
         excluding days without meals
@@ -130,7 +121,7 @@ class MealFetcher:
             response = session.request(method="GET", url=self.base_url + "css/styles.css")
         return response.text
 
-    def get_meals(self, day: date, include_raw: bool = False) -> MealsAvailable:
+    def get_day_available(self, day: date, include_raw: bool = False) -> MealsAvailable:
         """
         Get available meals for a day
 
@@ -154,39 +145,27 @@ class MealFetcher:
         Orders meals based on selected variable of MealAvailable.
         if any other field is modified it may through an error
         """
-        original_dishes = self.get_meals(meals.date)
-        if len(set(original_dishes.meals.keys()) ^ set(meals.meals.keys())) != 0:
-            raise ValueError(f"Different titles: {original_dishes.meals.keys()}, {meals.meals.keys()}")
+        original_dishes = self.get_day_available(meals.date)
         different = []
-        orig: MealAvailable
-        order: MealAvailable
-        for orig, order in zip(original_dishes.meals, meals.meals):
+        for orig, order in zip(original_dishes.dishes.keys(), meals.dishes.keys()):
             if orig.selected != order.selected:
                 different.append(order)
-
+        print(different)
         self.check_sid()
-        reconnect = True
         with Session() as session:
-            while reconnect:
-                self.sid.set(session)
-                reconnect = False
-                for diff in different:
-                    data = {
-                        "do": "wstaw_posilek",
-                        "data": meals.date.isoformat(),
-                        "danie": diff.meal_id,
-                        "state": diff.selected,
-                    }
-                    # when not submitted this does nothing
-                    response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz",
-                                               data=data)
-                    if response.text.startswith("<!DOCTYPE html>"):
-                        reconnect = True
-                        break
-                if reconnect:
-                    self.check_sid()
-            if self.check_sid():
-                self.sid.set(session)
+            self.sid.set(session)
+            for diff in different:
+                data = {
+                    "do": "wstaw_posilek",
+                    "data": meals.date.isoformat(),
+                    "danie": diff.meal_id,
+                    "state": diff.selected,
+                }
+                # when not submitted this does nothing
+                response = session.request(method="POST", url=self.base_url + "index.php?module=kalendarz",
+                                           data=data)
+                if response.text.startswith("<!DOCTYPE html>"):
+                    raise ValueError("Invalid sid")
             data = {
                 "do": "save_dishes",
             }
@@ -201,4 +180,6 @@ class MealFetcher:
 
 
 if __name__ == '__main__':
-    meal_fetcher = MealFetcher()
+    meal_fetcher = MealFetcher(
+        file_login_getter(Path("./secret.json"))
+    )

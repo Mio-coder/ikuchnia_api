@@ -70,10 +70,24 @@ class MealAvailable(Struct):
 class MealsAvailable(Struct):
     date: date
     day_name: str
-    meals: dict[str, MealAvailable]
+    soup: MealAvailable
+    meat_dish: MealAvailable
+    vegetarian_dish: MealAvailable
+    bonus_dish: MealAvailable
+    juice: MealAvailable
     price_before: float
     price_after: float
     raw: Optional[RawMealsAvailable] = None
+
+    @property
+    def dishes(self):
+        return {
+            "soup": self.soup,
+            "meat_dish": self.meat_dish,
+            "vegetarian_dish": self.vegetarian_dish,
+            "bonus_dish": self.bonus_dish,
+            "juice": self.juice,
+        }
 
 
 class Sid(Struct):
@@ -84,9 +98,3 @@ class Sid(Struct):
         session.cookies.set("PHPSESSID", self.sid)
 
 
-if __name__ == '__main__':
-    from msgspec.json import decode
-
-    with open("example.json") as f:
-        obj = decode(f.read(), type=RawMealsAvailable)
-    pprint(obj)
