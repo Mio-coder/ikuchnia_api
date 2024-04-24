@@ -46,7 +46,6 @@ dish_name_translation = {
     "Soup": "soup",
     "Meat dish": "meat_dish",
     "Vegetarian dish": "vegetarian_dish",
-    # "Danie dodatkowe": "bonus_dish", not translated
     "Cold press juice": "juice",
 }
 

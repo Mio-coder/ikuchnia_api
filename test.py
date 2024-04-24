@@ -1,7 +1,7 @@
 from datetime import date
 from pathlib import Path
 
-from get_text import MealFetcher, file_login_getter
+from src import MealFetcher, file_login_getter
 
 
 def test():

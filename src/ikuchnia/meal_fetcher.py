@@ -29,7 +29,7 @@ class MealFetcher:
 
     base_url = "https://ikuchnia.com.pl/klient/"
 
-    def __init__(self, secrets_getter: Callable[[], tuple[str, str]], sid_path: Path = Path("./sid.json")):
+    def __init__(self, secrets_getter: Callable[[], tuple[str, str]], sid_path: Path = Path("../sid.json")):
         """
         Initializes the MealFetcher with secrets getter function
         """
@@ -43,7 +43,7 @@ class MealFetcher:
         Ensures that the session ID is active and
         stores it in file self.sid_path
         returns if self.sid has changed
-        if force_refresh is True, always refreshes the sid
+        if force_refresh is True, refreshes the sid
         """
         need_refresh = self.sid.sid == "" or datetime.now() - self.sid.timestamp > timedelta(minutes=10)
 
@@ -181,5 +181,5 @@ class MealFetcher:
 
 if __name__ == '__main__':
     meal_fetcher = MealFetcher(
-        file_login_getter(Path("./secret.json"))
+        file_login_getter(Path("../../secret.json"))
     )
